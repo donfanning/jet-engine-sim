@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VX-90 Test Cell — F100/TF-Ramjet Hybrid Simulator</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="scene" aria-label="Interactive 3D jet engine"></canvas>
+<div class="vignette"></div>
+<div id="callouts" aria-hidden="true"></div>
+
+<header class="hud-header">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><path d="M16 2 L29 26 L16 21 L3 26 Z"/></svg>
+    </div>
+    <div class="brand-text">
+      <h1>VX-90 <span>/ TEST CELL 04</span></h1>
+      <p>AFTERBURNING LOW-BYPASS TURBOFAN · 20,000 LBF CLASS</p>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="lamps">
+      <div class="lamp" id="lampFuel"><i></i>FUEL</div>
+      <div class="lamp" id="lampIgn"><i></i>IGN</div>
+      <div class="lamp" id="lampAB"><i></i>A/B</div>
+      <div class="lamp" id="lampOil"><i></i>OIL</div>
+    </div>
+    <div class="master-caution" id="masterCaution"><i></i>MASTER CAUTION</div>
+    <div class="status-chip" id="statusChip" data-state="off"><i></i><span>ENGINE OFF</span></div>
+    <div class="clock" id="clock">00:00</div>
+    <button type="button" class="icon-btn" id="resetBtn" title="Reset simulation">RESET</button>
+    <button type="button" class="icon-btn" id="uiToggle" title="Hide interface (H)">UI</button>
+  </div>
+</header>
+
+<aside class="panel panel-left" id="leftPanel">
+  <section class="sec">
+    <div class="sec-head"><h2>Engine control</h2><span class="sec-tag">PROPULSION</span></div>
+    <div class="power-row">
+      <button type="button" class="btn btn-start" id="startBtn">
+        <span class="btn-glyph">▶</span>
+        <span class="btn-copy"><b>START</b><small>STARTER + IGNITION</small></span>
+      </button>
+      <button type="button" class="btn btn-stop" id="stopBtn">
+        <span class="btn-glyph">■</span>
+        <span class="btn-copy"><b>STOP</b><small>FUEL CUTOFF</small></span>
+      </button>
+    </div>
+    <div class="power-status" id="powerStatus"><i></i><span>READY FOR START</span></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Fuel &amp; throttle</h2><span class="sec-tag">FADEC</span></div>
+    <button type="button" class="row-toggle" id="fuelToggle" aria-pressed="false">
+      <span class="rt-label">Fuel valve<small>LP → combustor</small></span>
+      <span class="rt-right"><span class="rt-state" id="fuelState">CLOSED</span><span class="switch"><i></i></span></span>
+    </button>
+
+    <div class="throttle-block">
+      <div class="throttle-head">
+        <span class="t-label">Throttle</span>
+        <span class="t-value"><b id="throttleVal">0</b><em>%</em></span>
+      </div>
+      <input type="range" id="throttle" min="0" max="100" step="1" value="0" aria-label="Throttle">
+      <div class="throttle-scale"><span>IDLE</span><span>MIL</span><span>A/B</span></div>
+      <div class="btn-row four">
+        <button type="button" class="btn-mini" id="thrDown" title="Decrease throttle">−5</button>
+        <button type="button" class="btn-mini" id="thrIdle">IDLE</button>
+        <button type="button" class="btn-mini" id="thrMil">MIL</button>
+        <button type="button" class="btn-mini" id="thrUp" title="Increase throttle">+5</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Afterburner</h2><span class="sec-tag">AUGMENTOR</span></div>
+    <button type="button" class="row-toggle ab" id="abToggle" aria-pressed="false">
+      <span class="rt-label">A/B master<small>Requires N1 &gt; 85%</small></span>
+      <span class="rt-right"><span class="rt-state" id="abState">SAFE</span><span class="switch"><i></i></span></span>
+    </button>
+    <div class="ab-hint" id="abHint">Select after high power to light the augmentor.</div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Visual systems</h2><span class="sec-tag">VIEW</span></div>
+    <button type="button" class="row-toggle compact" id="coverToggle" aria-pressed="false">
+      <span class="rt-label">Nacelle cover</span>
+      <span class="rt-right"><span class="rt-state" id="coverState">INSTALLED</span><span class="switch"><i></i></span></span>
+    </button>
+    <button type="button" class="row-toggle compact active" id="flowToggle" aria-pressed="true">
+      <span class="rt-label">Airflow arrows</span>
+      <span class="rt-right"><span class="rt-state" id="flowState">ON</span><span class="switch"><i></i></span></span>
+    </button>
+    <button type="button" class="row-toggle compact active" id="labelsToggle" aria-pressed="true">
+      <span class="rt-label">Station labels</span>
+      <span class="rt-right"><span class="rt-state" id="labelsState">ON</span><span class="switch"><i></i></span></span>
+    </button>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Camera</h2><span class="sec-tag">ORBIT</span></div>
+    <div class="cam-grid">
+      <button type="button" class="cam-btn active" data-cam="quarter">3/4</button>
+      <button type="button" class="cam-btn" data-cam="side">SIDE</button>
+      <button type="button" class="cam-btn" data-cam="front">FRONT</button>
+      <button type="button" class="cam-btn" data-cam="rear">REAR</button>
+      <button type="button" class="cam-btn" data-cam="top">TOP</button>
+      <button type="button" class="cam-btn" data-cam="core">CORE</button>
+      <button type="button" class="cam-btn cam-wide" data-cam="orbit">AUTO ORBIT</button>
+    </div>
+  </section>
+
+  <section class="sec log-sec">
+    <div class="sec-head"><h2>Event log</h2><span class="sec-tag">CELL</span></div>
+    <div class="log" id="log"></div>
+  </section>
+</aside>
+
+<aside class="panel panel-right" id="rightPanel">
+  <section class="sec">
+    <div class="sec-head"><h2>Spool speeds</h2><span class="sec-tag">N1 / N2</span></div>
+    <div class="gauges">
+      <div class="gauge">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="g-track" cx="60" cy="60" r="48"/>
+          <circle class="g-red" cx="60" cy="60" r="48"/>
+          <circle class="g-fill n1" id="n1Arc" cx="60" cy="60" r="48"/>
+        </svg>
+        <div class="gauge-read"><b id="n1Val">0.0</b><em>% N1</em></div>
+      </div>
+      <div class="gauge">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="g-track" cx="60" cy="60" r="48"/>
+          <circle class="g-red" cx="60" cy="60" r="48"/>
+          <circle class="g-fill n2" id="n2Arc" cx="60" cy="60" r="48"/>
+        </svg>
+        <div class="gauge-read"><b id="n2Val">0.0</b><em>% N2</em></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Temperatures</h2><span class="sec-tag">°C</span></div>
+    <div class="meter" data-metric="tit">
+      <div class="meter-top"><span class="meter-name">TIT <i>turbine inlet</i></span><span class="meter-val"><b id="titVal">15</b><em>°C</em></span></div>
+      <div class="meter-track"><i class="meter-fill hot" id="titBar"></i><span class="limit" style="left:92%"></span></div>
+    </div>
+    <div class="meter" data-metric="egt">
+      <div class="meter-top"><span class="meter-name">EGT <i>turbine exit</i></span><span class="meter-val"><b id="egtVal">15</b><em>°C</em></span></div>
+      <div class="meter-track"><i class="meter-fill hot" id="egtBar"></i><span class="limit" style="left:88%"></span></div>
+    </div>
+    <div class="meter" data-metric="t3">
+      <div class="meter-top"><span class="meter-name">T3 <i>compressor exit</i></span><span class="meter-val"><b id="t3Val">15</b><em>°C</em></span></div>
+      <div class="meter-track"><i class="meter-fill warm" id="t3Bar"></i><span class="limit" style="left:90%"></span></div>
+    </div>
+    <div class="meter" data-metric="oil">
+      <div class="meter-top"><span class="meter-name">Oil temp <i>scavenge</i></span><span class="meter-val"><b id="oilTempVal">18</b><em>°C</em></span></div>
+      <div class="meter-track"><i class="meter-fill oil" id="oilTempBar"></i><span class="limit" style="left:78%"></span></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Performance</h2><span class="sec-tag">LIVE</span></div>
+    <div class="stat-grid">
+      <div class="stat"><span>Thrust</span><b id="thrustVal">0</b><em>lbf</em></div>
+      <div class="stat"><span>Fuel flow</span><b id="fuelVal">0</b><em>pph</em></div>
+      <div class="stat"><span>Airflow</span><b id="airVal">0</b><em>lb/s</em></div>
+      <div class="stat"><span>TSFC</span><b id="tsfcVal">—</b><em>lb/lbf·h</em></div>
+      <div class="stat"><span>Oil press</span><b id="oilPressVal">0</b><em>psi</em></div>
+      <div class="stat"><span>Oil flow</span><b id="oilFlowVal">0</b><em>gpm</em></div>
+      <div class="stat"><span>Oil heat</span><b id="oilHeatVal">0</b><em>kW</em></div>
+      <div class="stat"><span>Nozzle</span><b id="nozzleVal">25</b><em>% open</em></div>
+      <div class="stat"><span>Fuel / air</span><b id="farVal">0.000</b><em>ratio</em></div>
+      <div class="stat"><span>A/B duct</span><b id="abTempVal">15</b><em>°C</em></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Trend · 60 s</h2><span class="sec-tag"><i class="legend n2"></i>N2 <i class="legend egt"></i>EGT</span></div>
+    <div class="chart-wrap"><canvas id="trend"></canvas></div>
+  </section>
+
+  <section class="sec caution-sec">
+    <div class="sec-head"><h2>Cautions</h2><span class="sec-tag" id="cautionCount">0 ACTIVE</span></div>
+    <div class="cautions" id="cautions"></div>
+  </section>
+</aside>
+
+<div class="hint-bar">
+  <span><kbd>DRAG</kbd> orbit</span>
+  <span><kbd>SCROLL</kbd> zoom</span>
+  <span><kbd>SPACE</kbd> start/stop</span>
+  <span><kbd>W</kbd><kbd>S</kbd> throttle</span>
+  <span><kbd>F</kbd> fuel</span>
+  <span><kbd>B</kbd> A/B</span>
+  <span><kbd>C</kbd> cover</span>
+  <span><kbd>A</kbd> airflow</span>
+  <span><kbd>H</kbd> UI</span>
+</div>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
